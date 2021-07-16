@@ -54,7 +54,7 @@ static int draw_unsupported(cv::Mat& rgb)
     return 0;
 }
 
-static int draw_fps(cv::Mat& rgb)
+static int draw_fps(int w, int h, cv::Mat& rgb)
 {
     // resolve moving average
     float avg_fps = 0.f;
@@ -91,10 +91,10 @@ static int draw_fps(cv::Mat& rgb)
     }
 
     char text[32];
-    sprintf(text, "FPS=%.2f", avg_fps);
+    sprintf(text, "%dx%d FPS=%.2f", w, h, avg_fps);
 
     int baseLine = 0;
-    cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 2, 1, &baseLine);
+    cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
 
     int y = 0;
     int x = rgb.cols - label_size.width;
@@ -103,7 +103,7 @@ static int draw_fps(cv::Mat& rgb)
                     cv::Scalar(255, 255, 255), -1);
 
     cv::putText(rgb, text, cv::Point(x, y + label_size.height),
-                cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 0));
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }
@@ -134,7 +134,7 @@ JNIEXPORT jboolean JNICALL Java_com_example_ncnnnanodetcamerax_NanoDetNcnn_detec
         g_nanodet->detect(rgb, objects);
         g_nanodet->draw(rgb, objects);
     }
-    draw_fps(rgb);
+    draw_fps(jw, jh, rgb);
 
     // 将Mat从RGB转回去RGBA刷新java数据
     cvtColor(rgb, mat_image_src, cv::COLOR_RGB2RGBA, 4);

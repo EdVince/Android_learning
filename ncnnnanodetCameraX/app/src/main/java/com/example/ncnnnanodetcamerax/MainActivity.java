@@ -18,10 +18,20 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
 import android.graphics.Matrix;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
+import android.media.Image;
+import android.media.ImageReader;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.renderscript.Allocation;
+import android.renderscript.RenderScript;
+import android.renderscript.Script;
+import android.renderscript.Type;
 import android.util.Log;
 import android.util.Rational;
 import android.util.Size;
@@ -33,6 +43,10 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.Toast;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -179,16 +193,33 @@ public class MainActivity extends AppCompatActivity {
             new ImageAnalysis.Analyzer() {
                 @Override
                 public void analyze(ImageProxy image, int rotationDegrees) {
-                    // 获取摄像头实时返回的textureview的bitmap
-                    final Bitmap bitmap = textureView.getBitmap();
+
+                    // 下面两种拉取图像数据的方法二选一
+
+                    // 方法一
+                    // 从显示的textureview控件拉取图像数据
+                    // 优点：可以直接得到bitmap
+                    // 确点：拉取的分辨率就是控件也就是屏幕的分辨率
+                    // final Bitmap result = textureView.getBitmap();
+
+                    // 方法二
+                    // 从CameraX提供的ImageProxy拉取图像数据
+                    // 优点：是摄像头获取的真实分辨率
+                    // 缺点：提供的是YUV格式的Image，转Bitmap比较困难
+                    Image img = image.getImage();
+                    final Bitmap bitmap = onImageAvailable(img);
                     if(bitmap==null) return;
+                    Matrix matrix = new Matrix();
+                    matrix.setRotate(90);
+                    final Bitmap result = Bitmap.createBitmap(bitmap,0,0,bitmap.getWidth(),bitmap.getHeight(),matrix,true);
+                    textureView.setVisibility(View.INVISIBLE);
 
                     // 在这里跑ncnn
-                    int width = bitmap.getWidth();
-                    int height = bitmap.getHeight();
+                    int width = result.getWidth();
+                    int height = result.getHeight();
                     int[] pixArr = new int[width*height];
                     // bitmap转数组
-                    bitmap.getPixels(pixArr,0,width,0,0,width,height);
+                    result.getPixels(pixArr,0,width,0,0,width,height);
                     // 推理
                     nanodetncnn.detectDraw(width,height,pixArr);
                     // 数组转回去bitmap
@@ -204,5 +235,31 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         return imageAnalysis;
+    }
+
+    public Bitmap onImageAvailable(Image image) {
+        ByteArrayOutputStream outputbytes = new ByteArrayOutputStream();
+        ByteBuffer bufferY = image.getPlanes()[0].getBuffer();
+        byte[] data0 = new byte[bufferY.remaining()];
+        bufferY.get(data0);
+        ByteBuffer bufferU = image.getPlanes()[1].getBuffer();
+        byte[] data1 = new byte[bufferU.remaining()];
+        bufferU.get(data1);
+        ByteBuffer bufferV = image.getPlanes()[2].getBuffer();
+        byte[] data2 = new byte[bufferV.remaining()];
+        bufferV.get(data2);
+        try {
+            outputbytes.write(data0);
+            outputbytes.write(data2);
+            outputbytes.write(data1);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        final YuvImage yuvImage = new YuvImage(outputbytes.toByteArray(), ImageFormat.NV21, image.getWidth(),image.getHeight(), null);
+        ByteArrayOutputStream outBitmap = new ByteArrayOutputStream();
+        yuvImage.compressToJpeg(new Rect(0, 0, image.getWidth(), image.getHeight()), 95, outBitmap);
+        Bitmap bitmap = BitmapFactory.decodeByteArray(outBitmap.toByteArray(), 0, outBitmap.size());
+        image.close();
+        return bitmap;
     }
 }
