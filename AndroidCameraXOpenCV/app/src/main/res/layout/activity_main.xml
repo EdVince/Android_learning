@@ -17,8 +17,8 @@
 
     <ImageView
         android:id="@+id/ivBitmap"
-        android:layout_width="397dp"
-        android:layout_height="315dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:layout_gravity="center"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
