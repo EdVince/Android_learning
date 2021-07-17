@@ -53,11 +53,9 @@ public class MainActivity extends AppCompatActivity {
 
     private int REQUEST_CODE_PERMISSIONS = 101;
     private final String[] REQUIRED_PERMISSIONS = new String[]{"android.permission.CAMERA"};
-    TextureView textureView;    // 用来preview的textureview
     ImageView ivBitmap;         // 叠加在textureview上面的bitmap
 
     // CameraX的预览、分析，由于我们这里不需要捕获所以就不用了
-    Preview preview;
     ImageAnalysis imageAnalysis;
 
     // 创建一个nanoDetNcnn
@@ -81,7 +79,6 @@ public class MainActivity extends AppCompatActivity {
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT); // 锁定竖屏
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); // 保持屏幕常亮
 
-        textureView = findViewById(R.id.textureView);   // 绑定textureview
         ivBitmap = findViewById(R.id.ivBitmap);         // 绑定bitmap
 
         // 检查权限并启动摄像头
@@ -111,69 +108,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void updateTransform() {
-        Matrix mx = new Matrix();
-        float w = textureView.getMeasuredWidth();
-        float h = textureView.getMeasuredHeight();
-
-        float cX = w / 2f;
-        float cY = h / 2f;
-
-        int rotationDgr;
-        int rotation = (int) textureView.getRotation();
-
-        switch (rotation) {
-            case Surface.ROTATION_0:
-                rotationDgr = 0;
-                break;
-            case Surface.ROTATION_90:
-                rotationDgr = 90;
-                break;
-            case Surface.ROTATION_180:
-                rotationDgr = 180;
-                break;
-            case Surface.ROTATION_270:
-                rotationDgr = 270;
-                break;
-            default:
-                return;
-        }
-
-        mx.postRotate((float) rotationDgr, cX, cY);
-        textureView.setTransform(mx);
-    }
-
     private void startCamera() {
         CameraX.unbindAll(); // 解绑CameraX
-        preview = setPreview(); // 设置预览
         imageAnalysis = setImageAnalysis(); // 设置图像分析
-        // 绑定CameraX到生命周期，并喂入预览和分析
-        CameraX.bindToLifecycle(this, preview, imageAnalysis);
-    }
-
-    private Preview setPreview() {
-        Rational aspectRatio = new Rational(textureView.getWidth(), textureView.getHeight()); // 获取textureview的宽高比
-        Size screen = new Size(textureView.getWidth(), textureView.getHeight()); // 获取屏幕的尺寸
-
-        // 配置预览设置
-        PreviewConfig pConfig = new PreviewConfig.Builder()
-                .setTargetAspectRatio(aspectRatio)
-                .setTargetResolution(screen)
-                .build();
-        Preview preview = new Preview(pConfig); // 用预览配置生成preview
-        // 设置预览监听
-        preview.setOnPreviewOutputUpdateListener(
-                new Preview.OnPreviewOutputUpdateListener() {
-                    @Override
-                    public void onUpdated(Preview.PreviewOutput output) {
-                        ViewGroup parent = (ViewGroup) textureView.getParent();
-                        parent.removeView(textureView);
-                        parent.addView(textureView, 0);
-                        textureView.setSurfaceTexture(output.getSurfaceTexture());
-                        updateTransform();
-                    }
-                });
-        return preview;
+        // 绑定CameraX到生命周期，并喂入分析
+        CameraX.bindToLifecycle(this,imageAnalysis);
     }
 
     private ImageAnalysis setImageAnalysis() {
@@ -194,15 +133,6 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void analyze(ImageProxy image, int rotationDegrees) {
 
-                    // 下面两种拉取图像数据的方法二选一
-
-                    // 方法一
-                    // 从显示的textureview控件拉取图像数据
-                    // 优点：可以直接得到bitmap
-                    // 确点：拉取的分辨率就是控件也就是屏幕的分辨率
-                    // final Bitmap result = textureView.getBitmap();
-
-                    // 方法二
                     // 从CameraX提供的ImageProxy拉取图像数据
                     // 优点：是摄像头获取的真实分辨率
                     // 缺点：提供的是YUV格式的Image，转Bitmap比较困难
@@ -212,7 +142,6 @@ public class MainActivity extends AppCompatActivity {
                     Matrix matrix = new Matrix();
                     matrix.setRotate(90);
                     final Bitmap result = Bitmap.createBitmap(bitmap,0,0,bitmap.getWidth(),bitmap.getHeight(),matrix,true);
-                    textureView.setVisibility(View.INVISIBLE);
 
                     // 在这里跑ncnn
                     int width = result.getWidth();
