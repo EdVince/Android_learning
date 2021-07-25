@@ -377,7 +377,6 @@ public class Camera2BasicFragment extends Fragment
                 activity.finish();
             }
         }
-
     };
 
     private HandlerThread mBackgroundThread; // 用来跑任务的额外线程，不应该要阻塞UI界面
