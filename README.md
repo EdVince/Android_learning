@@ -8,3 +8,4 @@
 6. Camera2Video：熟悉了一下Camera2API录制视频的一些基本用法
 7. AndroidFlashLight：熟悉了一下闪光灯控制的一些基本用法
 8. AndroidSensors：熟悉了一下一些传感器的一些基本用法
+9. AndroidCanvasBasics：熟悉了一下Canvas的一些基本用法
